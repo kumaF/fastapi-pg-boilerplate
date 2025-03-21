@@ -1,0 +1,87 @@
+x-volume-common:
+  &volume-common
+  driver: local
+  driver_opts:
+    &volume-driver-opts-common
+    type: none
+    o: bind
+
+services:
+  postgresdb:
+    image: ${POSTGRESQL_IMAGE_NAME:-postgres:13}
+    container_name: postgresdb
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?error}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - ./docker-volumes/postgres-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "administrator"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: on-failure:3
+    ports:
+      - "${POSTGRESQL_PORT:-5432}:5432"
+  
+  pgadmin:
+    image: ${PGADMIN_IMAGE_NAME:-dpage/pgadmin4}
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?error}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?error}
+    volumes:
+      - ./docker-volumes/pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    restart: on-failure:3
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+        restart: true
+
+  # db-prep:
+  #   image: api-service
+  #   build:
+  #     context: .
+  #   environment:
+  #     PG_HOST: postgresdb
+  #     PG_PORT: ${POSTGRESQL_PORT:-5432}
+  #     PG_USER: ${POSTGRES_USER:?error}
+  #     PG_PASSWORD: ${POSTGRES_PASSWORD:?error}
+  #     PG_DB: ${POSTGRES_DB:-postgres}
+  #     PUBLIC_KEY: ${PUBLIC_KEY:?error}
+  #     PRIVATE_KEY: ${PRIVATE_KEY:?error}
+  #   command: ["uv", "run", "alembic", "upgrade", "head"]
+  #   restart: on-failure:3
+  #   depends_on:
+  #     postgresdb:
+  #       condition: service_healthy
+  #       restart: true
+
+  # api:
+  #   image: api-service
+  #   environment:
+  #     PG_HOST: postgresdb
+  #     PG_PORT: ${POSTGRESQL_PORT:-5432}
+  #     PG_USER: ${POSTGRES_USER:?error}
+  #     PG_PASSWORD: ${POSTGRES_PASSWORD:?error}
+  #     PG_DB: ${POSTGRES_DB:-postgres}
+  #     PUBLIC_KEY: ${PUBLIC_KEY:?error}
+  #     PRIVATE_KEY: ${PRIVATE_KEY:?error}
+  #   ports:
+  #     - "8000:80"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:80/api/v1/health"]
+  #     interval: 10s
+  #     retries: 5
+  #     start_period: 5s
+  #   restart: on-failure:3
+  #   depends_on:
+  #     postgresdb:
+  #       condition: service_healthy
+  #       restart: true
+  #     db-prep:
+  #       condition: service_completed_successfully
+  #       restart: true
