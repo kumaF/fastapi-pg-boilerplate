@@ -8,6 +8,9 @@ Ensure you have Python 3.10 or above installed. Additionally, you need `uv`, a P
 pip install uv
 ```
 
+```sh
+uv sync
+```
 ## Setup and Run
 
 Follow these steps to set up and run the project:
